@@ -1,12 +1,8 @@
 package ua.realestate.util;
 
 import java.time.LocalDate;
-import java.util.Set;
 
 class ValidationHelper {
-
-    static final Set<String> ALLOWED_PROPERTY_TYPES = Set.of("APARTMENT", "HOUSE", "COMMERCIAL", "GARAGE");
-    static final Set<String> ALLOWED_CONTRACT_STATUSES = Set.of("ACTIVE", "TERMINATED", "EXPIRED");
 
     private ValidationHelper() {
     }
@@ -57,14 +53,6 @@ class ValidationHelper {
         if (value.isBefore(reference)) {
             throw new IllegalArgumentException(
                 fieldName + " must not be before " + referenceName + " (" + reference + "), got: " + value
-            );
-        }
-    }
-
-    static void requireInAllowedSet(String value, Set<String> allowed, String fieldName) {
-        if (!allowed.contains(value)) {
-            throw new IllegalArgumentException(
-                fieldName + " must be one of " + allowed + ", got: " + value
             );
         }
     }
