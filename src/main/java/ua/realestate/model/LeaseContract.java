@@ -1,15 +1,11 @@
 package ua.realestate.model;
 
-import ua.common.BaseEntity;
 import ua.realestate.util.RealEstateUtils;
 
 import java.time.LocalDate;
 import java.util.Objects;
-import java.util.Set;
 
-public class LeaseContract extends BaseEntity {
-
-    private static final Set<String> ALLOWED_STATUSES = Set.of("ACTIVE", "TERMINATED", "EXPIRED");
+public class LeaseContract {
 
     private final String contractNumber;
     private final Property property;
@@ -17,11 +13,10 @@ public class LeaseContract extends BaseEntity {
     private final LocalDate startDate;
     private final LocalDate endDate;
     private final double depositAmount;
-    private String status;
+    private ContractStatus status;
 
     private LeaseContract(String contractNumber, Property property, String tenantName,
-                          LocalDate startDate, LocalDate endDate, double depositAmount, String status) {
-        super();
+                          LocalDate startDate, LocalDate endDate, double depositAmount, ContractStatus status) {
         RealEstateUtils.validateNotBlank(contractNumber, "contractNumber");
         RealEstateUtils.validateNotNull(property, "property");
         RealEstateUtils.validateNotBlank(tenantName, "tenantName");
@@ -47,19 +42,13 @@ public class LeaseContract extends BaseEntity {
     }
 
     public static LeaseContract of(String contractNumber, Property property, String tenantName,
-                                   LocalDate startDate, LocalDate endDate, double depositAmount, String status) {
+                                   LocalDate startDate, LocalDate endDate, double depositAmount, ContractStatus status) {
         return new LeaseContract(contractNumber, property, tenantName, startDate, endDate, depositAmount, status);
     }
 
-    public final void setStatus(String status) {
-        RealEstateUtils.validateNotBlank(status, "status");
-        String normalized = RealEstateUtils.normalize(status);
-        if (!ALLOWED_STATUSES.contains(normalized)) {
-            throw new IllegalArgumentException(
-                "status must be one of " + ALLOWED_STATUSES + ", got: " + status
-            );
-        }
-        this.status = normalized;
+    public final void setStatus(ContractStatus status) {
+        RealEstateUtils.validateNotNull(status, "status");
+        this.status = status;
     }
 
     public String getContractNumber() {
@@ -86,7 +75,7 @@ public class LeaseContract extends BaseEntity {
         return depositAmount;
     }
 
-    public String getStatus() {
+    public ContractStatus getStatus() {
         return status;
     }
 
@@ -112,8 +101,7 @@ public class LeaseContract extends BaseEntity {
             ", startDate=" + startDate +
             ", endDate=" + endDate +
             ", depositAmount=" + depositAmount +
-            ", status='" + status + '\'' +
-            ", createdAt=" + createdAt +
+            ", status=" + status +
             '}';
     }
 }
