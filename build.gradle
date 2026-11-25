@@ -19,6 +19,7 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.withType(JavaExec).configureEach {
     defaultCharacterEncoding = 'UTF-8'
+    jvmArgs += ['-Dstdout.encoding=UTF-8', '-Dstderr.encoding=UTF-8']
 }
 
 repositories {
@@ -36,4 +37,12 @@ dependencies {
  
 test {
     useJUnitPlatform()
+}
+
+tasks.register('benchmark', JavaExec) {
+    group = 'benchmark'
+    description = 'Runs the search benchmark'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'ua.realestate.repository.SearchBenchmark'
+    defaultCharacterEncoding = 'UTF-8'
 }

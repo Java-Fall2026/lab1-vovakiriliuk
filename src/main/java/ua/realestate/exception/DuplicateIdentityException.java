@@ -1,0 +1,8 @@
+package ua.realestate.exception;
+
+public class DuplicateIdentityException extends IllegalStateException {
+
+    public DuplicateIdentityException(String message) {
+        super(message);
+    }
+}
