@@ -45,4 +45,5 @@ tasks.register('benchmark', JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'ua.realestate.repository.SearchBenchmark'
     defaultCharacterEncoding = 'UTF-8'
+    systemProperty 'logback.configurationFile', file('src/main/resources/logback-benchmark.xml').absolutePath
 }

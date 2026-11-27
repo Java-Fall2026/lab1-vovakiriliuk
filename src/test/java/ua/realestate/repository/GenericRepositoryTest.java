@@ -143,9 +143,10 @@ class GenericRepositoryTest {
     }
 
     @Test
-    @DisplayName("Should add all items from collection")
+    @DisplayName("Should add all items from collection with wildcard")
     void shouldAddAllItemsSuccessfully() {
-        repository.addAll(List.of(landlord1, landlord2));
+        List<? extends Landlord> items = List.of(landlord1, landlord2);
+        repository.addAll(items);
         assertEquals(2, repository.size());
     }
 }

@@ -72,7 +72,7 @@ public class GenericRepository<T> {
         return true;
     }
 
-    public void addAll(Collection<T> items) {
+    public void addAll(Collection<? extends T> items) {
         if (items == null) {
             log.error("Items collection cannot be null in repository '{}'", name);
             throw new IllegalArgumentException("Items collection cannot be null in repository '" + name + "'");

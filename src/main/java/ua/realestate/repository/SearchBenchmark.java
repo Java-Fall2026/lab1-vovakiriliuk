@@ -10,8 +10,13 @@ import java.util.Optional;
 public class SearchBenchmark {
 
     private static final int ITEM_COUNT = 100_000;
-    private static final int WARMUP_RUNS = 20;
+    private static final int WARMUP_RUNS = 100;
     private static final int MEASURE_RUNS = 25;
+
+    private static final int BATCH_SIZE_MAP = 10_000;
+    private static final int BATCH_SIZE_LIST = 100;
+
+    private static int sink = 0;
 
     public static void main(String[] args) {
         IdentityExtractor<Landlord> extractor = Landlord::taxCode;
@@ -31,72 +36,80 @@ public class SearchBenchmark {
         String lastId = String.format("TAX-%06d", ITEM_COUNT - 1);
         String absentId = "TAX-NONEXISTENT";
 
-        System.out.println("Warming up JIT compiler...");
+        System.out.println("Warming up JIT compiler (" + WARMUP_RUNS + " iterations)...");
         for (int i = 0; i < WARMUP_RUNS; i++) {
-            repository.findByIdentity(firstId);
-            repository.findByIdentity(lastId);
-            repository.findByIdentity(absentId);
+            runMapBatch(repository, firstId, 1000);
+            runMapBatch(repository, lastId, 1000);
+            runMapBatch(repository, absentId, 1000);
 
-            linearSearch(itemsList, firstId, extractor);
-            linearSearch(itemsList, lastId, extractor);
-            linearSearch(itemsList, absentId, extractor);
+            runListBatch(itemsList, firstId, extractor, 50);
+            runListBatch(itemsList, lastId, extractor, 10);
+            runListBatch(itemsList, absentId, extractor, 10);
         }
 
-        System.out.println("Running benchmark (" + MEASURE_RUNS + " iterations)...");
+        System.out.println("Running benchmark (" + MEASURE_RUNS + " measurement runs per scenario)...");
 
-        long mapFirst = measureMap(repository, firstId);
-        long mapLast = measureMap(repository, lastId);
-        long mapAbsent = measureMap(repository, absentId);
+        double mapFirst = measureMap(repository, firstId);
+        double mapLast = measureMap(repository, lastId);
+        double mapAbsent = measureMap(repository, absentId);
 
-        long listFirst = measureList(itemsList, firstId, extractor);
-        long listLast = measureList(itemsList, lastId, extractor);
-        long listAbsent = measureList(itemsList, absentId, extractor);
+        double listFirst = measureList(itemsList, firstId, extractor);
+        double listLast = measureList(itemsList, lastId, extractor);
+        double listAbsent = measureList(itemsList, absentId, extractor);
 
-        System.out.println("\nBenchmark results (median time in nanoseconds / microseconds):");
-        System.out.println("+----------------------+--------------------+--------------------+");
-        System.out.println("| Scenario             | Map (HashMap/LHM)  | List (Linear)      |");
-        System.out.println("+----------------------+--------------------+--------------------+");
-        System.out.printf("| First element (0)    | %8d ns (%6.2f µs) | %8d ns (%6.2f µs) |\n",
+        System.out.println("\nBenchmark results (median time per single operation):");
+        System.out.println("+----------------------+-------------------------+-------------------------+");
+        System.out.println("| Scenario             | Map (LinkedHashMap)     | List (Linear Search)    |");
+        System.out.println("+----------------------+-------------------------+-------------------------+");
+        System.out.printf("| First element (0)    | %9.1f ns (%7.3f µs) | %9.1f ns (%7.3f µs) |\n",
                 mapFirst, mapFirst / 1000.0, listFirst, listFirst / 1000.0);
-        System.out.printf("| Last element (99999) | %8d ns (%6.2f µs) | %8d ns (%6.2f µs) |\n",
+        System.out.printf("| Last element (99999) | %9.1f ns (%7.3f µs) | %9.1f ns (%7.3f µs) |\n",
                 mapLast, mapLast / 1000.0, listLast, listLast / 1000.0);
-        System.out.printf("| Absent element       | %8d ns (%6.2f µs) | %8d ns (%6.2f µs) |\n",
+        System.out.printf("| Absent element       | %9.1f ns (%7.3f µs) | %9.1f ns (%7.3f µs) |\n",
                 mapAbsent, mapAbsent / 1000.0, listAbsent, listAbsent / 1000.0);
-        System.out.println("+----------------------+--------------------+--------------------+");
+        System.out.println("+----------------------+-------------------------+-------------------------+");
+
+        if (sink == 42) {
+            System.out.print("");
+        }
     }
 
-    private static long measureMap(GenericRepository<Landlord> repo, String identity) {
-        List<Long> times = new ArrayList<>();
+    private static double measureMap(GenericRepository<Landlord> repo, String identity) {
+        List<Double> perOpTimes = new ArrayList<>();
         for (int i = 0; i < MEASURE_RUNS; i++) {
             long start = System.nanoTime();
+            runMapBatch(repo, identity, BATCH_SIZE_MAP);
+            long end = System.nanoTime();
+            perOpTimes.add((double) (end - start) / BATCH_SIZE_MAP);
+        }
+        Collections.sort(perOpTimes);
+        return perOpTimes.get(perOpTimes.size() / 2);
+    }
+
+    private static void runMapBatch(GenericRepository<Landlord> repo, String identity, int batchSize) {
+        for (int b = 0; b < batchSize; b++) {
             Optional<Landlord> res = repo.findByIdentity(identity);
-            long end = System.nanoTime();
-            if (identity.equals("TAX-NONEXISTENT")) {
-                if (res.isPresent()) throw new IllegalStateException();
-            } else {
-                if (res.isEmpty()) throw new IllegalStateException();
-            }
-            times.add(end - start);
+            sink ^= res.hashCode();
         }
-        Collections.sort(times);
-        return times.get(times.size() / 2);
     }
 
-    private static long measureList(List<Landlord> list, String identity, IdentityExtractor<Landlord> extractor) {
-        List<Long> times = new ArrayList<>();
+    private static double measureList(List<Landlord> list, String identity, IdentityExtractor<Landlord> extractor) {
+        List<Double> perOpTimes = new ArrayList<>();
         for (int i = 0; i < MEASURE_RUNS; i++) {
             long start = System.nanoTime();
-            Optional<Landlord> res = linearSearch(list, identity, extractor);
+            runListBatch(list, identity, extractor, BATCH_SIZE_LIST);
             long end = System.nanoTime();
-            if (identity.equals("TAX-NONEXISTENT")) {
-                if (res.isPresent()) throw new IllegalStateException();
-            } else {
-                if (res.isEmpty()) throw new IllegalStateException();
-            }
-            times.add(end - start);
+            perOpTimes.add((double) (end - start) / BATCH_SIZE_LIST);
         }
-        Collections.sort(times);
-        return times.get(times.size() / 2);
+        Collections.sort(perOpTimes);
+        return perOpTimes.get(perOpTimes.size() / 2);
+    }
+
+    private static void runListBatch(List<Landlord> list, String identity, IdentityExtractor<Landlord> extractor, int batchSize) {
+        for (int b = 0; b < batchSize; b++) {
+            Optional<Landlord> res = linearSearch(list, identity, extractor);
+            sink ^= res.hashCode();
+        }
     }
 
     private static <E> Optional<E> linearSearch(
